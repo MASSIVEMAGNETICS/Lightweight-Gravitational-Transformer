@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lightweight-gravitational-transformer"
+version = "0.1.0"
+description = "A physics-aware transformer architecture using gravitational attention, designed for edge deployment and VictorOS integration."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "MASSIVEMAGNETICS" },
+]
+keywords = [
+    "transformer",
+    "attention",
+    "gravitational",
+    "physics-aware",
+    "edge-ml",
+    "victoros",
+    "deep-learning",
+    "pytorch",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+benchmarks = [
+    "pytest>=7.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/MASSIVEMAGNETICS/Lightweight-Gravitational-Transformer"
+"Bug Tracker" = "https://github.com/MASSIVEMAGNETICS/Lightweight-Gravitational-Transformer/issues"
+"Documentation" = "https://github.com/MASSIVEMAGNETICS/Lightweight-Gravitational-Transformer/tree/main/docs"
+
+[project.scripts]
+lgt-export = "export_edge_model:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests*", "benchmarks*", "examples*", "docs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "benchmarks/*",
+    "examples/*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
