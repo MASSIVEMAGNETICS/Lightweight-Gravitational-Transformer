@@ -37,6 +37,7 @@ from victorcos_module import (
     LedgerEntry,
     MirrorLayer,
     LGTVictorOSModule,
+    MorphicVictorAgent,
     victoros_module,
     VictorOSBaseModule,
 )
@@ -49,6 +50,16 @@ from training import (
 )
 from tri_model import TriModelTransformer, CrossGravitationalFusion
 from export_edge_model import build_model, export_edge_model, PRESETS
+from octonion_pos_embedding import (
+    OctonionEmbedding,
+    octonion_distance,
+    GravitationalOctonionPosition,
+)
+from polymorphic_attention_orchestrator import (
+    PHASE_CONFIG,
+    PolymorphicAttentionOrchestrator,
+)
+from training_containment import MorphicContainmentConfig, MorphicContainmentProtocol
 
 
 # ===========================================================================
@@ -700,3 +711,304 @@ class TestBenchmarks:
         assert "memory" in result
         assert result["latency"]["mean_ms"] > 0
         assert result["throughput"]["inferences_per_sec"] > 0
+
+
+# ===========================================================================
+# octonion_pos_embedding
+# ===========================================================================
+
+class TestOctonionEmbedding:
+    def test_output_shape(self):
+        emb = OctonionEmbedding(dim_model=64, max_len=128)
+        x = torch.randn(2, 10, 64)
+        pe = emb(x)
+        assert pe.shape == (1, 10, 64)
+
+    def test_device_consistency(self):
+        emb = OctonionEmbedding(dim_model=32, max_len=64)
+        x = torch.randn(1, 8, 32)
+        pe = emb(x)
+        assert pe.device == x.device
+
+    def test_no_nan(self):
+        emb = OctonionEmbedding(dim_model=64, max_len=128)
+        x = torch.randn(2, 16, 64)
+        pe = emb(x)
+        assert not torch.isnan(pe).any()
+
+    def test_dim_not_divisible_by_8(self):
+        # dim_model=33 is not divisible by 8 but should still work
+        emb = OctonionEmbedding(dim_model=33, max_len=16)
+        x = torch.randn(1, 4, 33)
+        pe = emb(x)
+        assert pe.shape == (1, 4, 33)
+
+
+class TestOctonionDistance:
+    def test_zero_distance_for_identical_vectors(self):
+        v = torch.randn(3, 8)
+        dist = octonion_distance(v, v)
+        # Should be near zero (only epsilon keeps it > 0)
+        assert (dist < 1e-3).all()
+
+    def test_non_negative(self):
+        a = torch.randn(4, 8)
+        b = torch.randn(4, 8)
+        dist = octonion_distance(a, b)
+        assert (dist >= 0).all()
+
+    def test_output_shape_keepdim(self):
+        a = torch.randn(2, 5, 1, 16)
+        b = torch.randn(2, 1, 5, 16)
+        dist = octonion_distance(a, b)
+        assert dist.shape == (2, 5, 5, 1)
+
+
+class TestGravitationalOctonionPosition:
+    def test_output_shape(self):
+        gop = GravitationalOctonionPosition(dim_model=64, max_len=128)
+        x = torch.randn(2, 10, 64)
+        dist = gop(x)
+        assert dist.shape == (2, 10, 10)
+
+    def test_non_negative(self):
+        gop = GravitationalOctonionPosition(dim_model=32, max_len=64)
+        x = torch.randn(1, 6, 32)
+        dist = gop(x)
+        assert (dist >= 0).all()
+
+    def test_no_nan(self):
+        gop = GravitationalOctonionPosition(dim_model=64, max_len=128)
+        x = torch.randn(2, 8, 64)
+        dist = gop(x)
+        assert not torch.isnan(dist).any()
+
+
+# ===========================================================================
+# polymorphic_attention_orchestrator
+# ===========================================================================
+
+class TestPolymorphicAttentionOrchestrator:
+    def _make_orch(self, dim=64, heads=4):
+        return PolymorphicAttentionOrchestrator(dim_model=dim, num_heads=heads, max_len=128)
+
+    def test_output_shape(self):
+        orch = self._make_orch()
+        x = torch.randn(2, 8, 64)
+        out, diag = orch(x)
+        assert out.shape == (2, 8, 64)
+
+    def test_diagnostics_keys(self):
+        orch = self._make_orch()
+        x = torch.randn(1, 6, 64)
+        _, diag = orch(x)
+        assert "max_force" in diag
+        assert "mean_force" in diag
+        assert "phase" in diag
+        assert "G" in diag
+        assert "curvature" in diag
+
+    def test_morph_changes_phase(self):
+        orch = self._make_orch()
+        orch.morph("singularity")
+        assert orch.current_phase == "singularity"
+        assert orch.G == PHASE_CONFIG["singularity"]["G"]
+
+    def test_all_phases_run(self):
+        orch = self._make_orch()
+        x = torch.randn(1, 4, 64)
+        for phase in ["solid", "fluid", "gas", "singularity"]:
+            out, diag = orch(x, phase=phase)
+            assert out.shape == (1, 4, 64)
+            assert diag["phase"] == phase
+
+    def test_phase_override_does_not_mutate_current_phase(self):
+        orch = self._make_orch()
+        orch.morph("solid")
+        x = torch.randn(1, 4, 64)
+        orch(x, phase="gas")
+        # current_phase should still be "solid"
+        assert orch.current_phase == "solid"
+
+    def test_invalid_phase_raises(self):
+        orch = self._make_orch()
+        with pytest.raises(ValueError):
+            orch.morph("plasma")
+
+    def test_dim_not_divisible_raises(self):
+        with pytest.raises(ValueError):
+            PolymorphicAttentionOrchestrator(dim_model=65, num_heads=4)
+
+    def test_no_nan_output(self):
+        orch = self._make_orch()
+        x = torch.randn(2, 8, 64)
+        out, _ = orch(x, phase="singularity")
+        assert not torch.isnan(out).any()
+
+    def test_gradient_flow(self):
+        orch = self._make_orch()
+        x = torch.randn(1, 4, 64, requires_grad=True)
+        out, _ = orch(x)
+        out.sum().backward()
+        assert x.grad is not None
+
+    def test_phase_config_completeness(self):
+        for phase in ["solid", "fluid", "gas", "singularity"]:
+            assert phase in PHASE_CONFIG
+            cfg = PHASE_CONFIG[phase]
+            assert "G" in cfg
+            assert "curvature" in cfg
+            assert "hawking_clamp" in cfg
+
+
+# ===========================================================================
+# training_containment
+# ===========================================================================
+
+class TestMorphicContainmentProtocol:
+    def _make_protocol(self, ledger=None):
+        model = nn.Linear(16, 16)
+        config = MorphicContainmentConfig(
+            max_grad_norm=1.0,
+            max_attention_force=10.0,
+            bekenstein_lambda=1e-4,
+            min_stability=0.2,
+        )
+        return MorphicContainmentProtocol(model=model, ledger=ledger, config=config)
+
+    def _make_loss_with_grad(self, model):
+        """Helper: produce a backward-ed loss so grads exist."""
+        x = torch.randn(1, 16)
+        loss = model(x).sum()
+        loss.backward()
+        return loss.detach()
+
+    def test_step_returns_true_on_normal_run(self):
+        proto = self._make_protocol()
+        loss = self._make_loss_with_grad(proto.model)
+        result = proto.step(loss, {"max_force": 1.0, "phase": "fluid", "stability": 0.9})
+        assert result is True
+
+    def test_step_returns_false_on_low_stability(self):
+        proto = self._make_protocol()
+        loss = self._make_loss_with_grad(proto.model)
+        result = proto.step(loss, {"max_force": 1.0, "phase": "fluid", "stability": 0.1})
+        assert result is False
+
+    def test_hawking_radiation_dampens_gradients(self):
+        proto = self._make_protocol()
+        loss = self._make_loss_with_grad(proto.model)
+        # Record grad norm before
+        before = sum(p.grad.norm().item() for p in proto.model.parameters() if p.grad is not None)
+        # Trigger Hawking radiation (force >> max_attention_force)
+        proto.step(loss, {"max_force": 1000.0, "phase": "singularity", "stability": 0.9})
+        after = sum(p.grad.norm().item() for p in proto.model.parameters() if p.grad is not None)
+        assert after <= before + 1e-6  # gradients were scaled down (then clipped)
+
+    def test_bekenstein_penalty_shape(self):
+        proto = self._make_protocol()
+        attn = torch.softmax(torch.randn(2, 8, 8), dim=-1)
+        penalty = proto.apply_bekenstein_penalty(attn)
+        assert penalty.shape == ()
+        assert penalty.item() >= 0
+
+    def test_bekenstein_penalty_differentiable(self):
+        proto = self._make_protocol()
+        attn = torch.softmax(torch.randn(2, 8, 8), dim=-1).requires_grad_(True)
+        penalty = proto.apply_bekenstein_penalty(attn)
+        penalty.backward()
+        assert attn.grad is not None
+
+    def test_ledger_logging(self):
+        ledger = Ledger(agent_id="test_containment")
+        proto = self._make_protocol(ledger=ledger)
+        loss = self._make_loss_with_grad(proto.model)
+        proto.step(loss, {"max_force": 1000.0, "phase": "singularity", "stability": 0.9})
+        events = [e.event for e in ledger.entries()]
+        assert "containment_event" in events
+
+    def test_default_config_used_when_none(self):
+        model = nn.Linear(4, 4)
+        proto = MorphicContainmentProtocol(model=model)
+        assert proto.config is not None
+        assert proto.config.max_grad_norm > 0
+
+    def test_step_no_diagnostics(self):
+        proto = self._make_protocol()
+        loss = self._make_loss_with_grad(proto.model)
+        # Should not raise even without diagnostics
+        result = proto.step(loss)
+        assert isinstance(result, bool)
+
+
+# ===========================================================================
+# MorphicVictorAgent
+# ===========================================================================
+
+class TestMorphicVictorAgent:
+    def _make_agent(self, initial_phase="fluid"):
+        lgt = LightweightGravitationalTransformer(
+            vocab_size=100, dim_model=64, num_layers=2, num_heads=4
+        )
+        orch = PolymorphicAttentionOrchestrator(dim_model=64, num_heads=4, max_len=128)
+        return MorphicVictorAgent(
+            model=lgt,
+            orchestrator=orch,
+            agent_id="test_morphic_agent",
+            initial_phase=initial_phase,
+        )
+
+    def test_initial_phase(self):
+        agent = self._make_agent("solid")
+        assert agent.current_phase == "solid"
+        assert agent.orchestrator.current_phase == "solid"
+
+    def test_process_morphic_output_shape(self):
+        agent = self._make_agent()
+        x = torch.randint(0, 100, (1, 8))
+        result = agent.process_morphic(x)
+        assert result["output"].shape == (1, 8, 100)
+        assert "phase" in result
+
+    def test_determine_phase_low_stability(self):
+        agent = self._make_agent()
+        phase = agent.determine_phase(stability=0.2)
+        assert phase == "gas"
+
+    def test_determine_phase_high_stability(self):
+        agent = self._make_agent()
+        phase = agent.determine_phase(stability=0.95)
+        assert phase == "solid"
+
+    def test_determine_phase_singularity(self):
+        agent = self._make_agent()
+        phase = agent.determine_phase(stability=0.85, task_complexity=1.0)
+        assert phase == "singularity"
+
+    def test_phase_shift_logged_to_ledger(self):
+        agent = self._make_agent(initial_phase="solid")
+        # Force a phase shift by injecting a low stability score
+        agent.mirror_layer._force_history = [1000.0] * 20  # → low stability
+        x = torch.randint(0, 100, (1, 4))
+        agent.process_morphic(x)
+        events = [e.event for e in agent.ledger.entries()]
+        assert "phase_shift" in events
+
+    def test_apply_phase_updates_orchestrator(self):
+        agent = self._make_agent("fluid")
+        agent.apply_phase("singularity")
+        assert agent.orchestrator.current_phase == "singularity"
+        assert agent.orchestrator.G == PHASE_CONFIG["singularity"]["G"]
+
+    def test_process_morphic_returns_stability(self):
+        agent = self._make_agent()
+        x = torch.randint(0, 100, (1, 6))
+        result = agent.process_morphic(x)
+        assert "stability" in result
+        assert 0.0 <= result["stability"] <= 1.0
+
+    def test_no_nan_output(self):
+        agent = self._make_agent()
+        x = torch.randint(0, 100, (1, 8))
+        result = agent.process_morphic(x)
+        assert not torch.isnan(result["output"]).any()
