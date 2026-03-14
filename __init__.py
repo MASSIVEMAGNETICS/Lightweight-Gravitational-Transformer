@@ -41,7 +41,23 @@ from victorcos_module import (
     VictorOSBaseModule,
     VictorOSModuleMetadata,
     LGTVictorOSModule,
+    MorphicVictorAgent,
     victoros_module,
+)
+
+# Morphic Cognitive Engine
+from octonion_pos_embedding import (
+    OctonionEmbedding,
+    octonion_distance,
+    GravitationalOctonionPosition,
+)
+from polymorphic_attention_orchestrator import (
+    PHASE_CONFIG,
+    PolymorphicAttentionOrchestrator,
+)
+from training_containment import (
+    MorphicContainmentConfig,
+    MorphicContainmentProtocol,
 )
 
 # Training
@@ -88,7 +104,16 @@ __all__ = [
     "VictorOSBaseModule",
     "VictorOSModuleMetadata",
     "LGTVictorOSModule",
+    "MorphicVictorAgent",
     "victoros_module",
+    # Morphic Cognitive Engine
+    "OctonionEmbedding",
+    "octonion_distance",
+    "GravitationalOctonionPosition",
+    "PHASE_CONFIG",
+    "PolymorphicAttentionOrchestrator",
+    "MorphicContainmentConfig",
+    "MorphicContainmentProtocol",
     # Training
     "ContainmentConfig",
     "ContainmentProtocol",
