@@ -987,8 +987,10 @@ class TestMorphicVictorAgent:
 
     def test_phase_shift_logged_to_ledger(self):
         agent = self._make_agent(initial_phase="solid")
-        # Force a phase shift by injecting a low stability score
-        agent.mirror_layer._force_history = [1000.0] * 20  # → low stability
+        # Drive stability low by feeding high-force diagnostics through
+        # the MirrorLayer's public callback interface
+        for _ in range(25):
+            agent.mirror_layer(0, {"mean_force": 1000.0})
         x = torch.randint(0, 100, (1, 4))
         agent.process_morphic(x)
         events = [e.event for e in agent.ledger.entries()]

@@ -76,7 +76,10 @@ class OctonionEmbedding(nn.Module):
             same device as ``x``.
         """
         seq_len = x.size(1)
-        return self.pe[:, :seq_len, :].to(x.device)  # type: ignore[return-value]
+        pe = self.pe[:, :seq_len, :]  # type: ignore[index]
+        if pe.device != x.device:
+            pe = pe.to(x.device)
+        return pe  # type: ignore[return-value]
 
 
 def octonion_distance(oct_a: torch.Tensor, oct_b: torch.Tensor) -> torch.Tensor:
