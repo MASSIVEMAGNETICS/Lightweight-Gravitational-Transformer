@@ -457,3 +457,182 @@ class LGTVictorOSModule(VictorOSBaseModule):
 
     def _on_correction(self, layer_idx: int, correction_type: str) -> None:
         self._corrections.append({"layer": layer_idx, "type": correction_type, "t": time.time()})
+
+
+# ---------------------------------------------------------------------------
+# Morphic Victor Agent
+# ---------------------------------------------------------------------------
+
+@victoros_module(
+    name="morphic_victor_agi",
+    version="1.0.0",
+    containment_native=True,
+    description=(
+        "Active Intelligence with Phase-Shifting Gravitational Attention. "
+        "Autonomously shifts cognitive phases (Solid/Fluid/Gas/Singularity) "
+        "based on internal stability scores and task complexity."
+    ),
+)
+class MorphicVictorAgent(LGTVictorOSModule):
+    """
+    An autonomous VictorOS agent that shifts its gravitational attention
+    phase based on internal stability scores.
+
+    The agent wraps a :class:`~polymorphic_attention_orchestrator.PolymorphicAttentionOrchestrator`
+    alongside the standard LGT model.  On each :meth:`process_morphic` call
+    it:
+
+    1. Reads the current stability score from the Mirror Layer.
+    2. Determines the appropriate cognitive phase via :meth:`determine_phase`.
+    3. If the phase has changed, calls :meth:`apply_phase` and logs the
+       transition to the VictorOS Ledger.
+    4. Runs the standard LGT forward pass with full Mirror Layer
+       introspection.
+
+    Args:
+        model: A pre-constructed ``LightweightGravitationalTransformer``.
+        orchestrator: A :class:`~polymorphic_attention_orchestrator.PolymorphicAttentionOrchestrator`
+            instance that performs morphic gravitational attention.
+        agent_id: Unique identifier used in Ledger entries.
+        persist_path: Optional path to flush Ledger entries to disk.
+        max_force_threshold: Mirror Layer containment threshold.
+        initial_phase: Starting cognitive phase (``"fluid"`` by default).
+    """
+
+    # Phase → (G, curvature) mapping kept here for model-level updates
+    _PHASE_MAP: Dict[str, Dict[str, float]] = {
+        "solid":       {"G": 0.5,  "curvature": 0.0},
+        "fluid":       {"G": 1.0,  "curvature": 0.15},
+        "gas":         {"G": 0.1,  "curvature": 0.8},
+        "singularity": {"G": 50.0, "curvature": -0.1},
+    }
+
+    def __init__(
+        self,
+        model: nn.Module,
+        orchestrator: "Any",  # PolymorphicAttentionOrchestrator
+        agent_id: str = "morphic_victor_agent",
+        persist_path: Optional[str] = None,
+        max_force_threshold: float = 40.0,
+        initial_phase: str = "fluid",
+    ):
+        super().__init__(
+            model=model,
+            agent_id=agent_id,
+            persist_path=persist_path,
+            max_force_threshold=max_force_threshold,
+        )
+        self.orchestrator = orchestrator
+        self.current_phase: str = initial_phase
+        # Sync orchestrator to the initial phase
+        self.orchestrator.morph(initial_phase)
+
+    # ------------------------------------------------------------------
+    # Phase management
+    # ------------------------------------------------------------------
+
+    def determine_phase(
+        self,
+        stability: float,
+        task_complexity: Optional[float] = None,
+    ) -> str:
+        """
+        Heuristic for selecting the appropriate cognitive phase.
+
+        Rules:
+        - ``stability < 0.4`` → **Gas** (diffuse exploration to recover).
+        - ``stability > 0.9`` → **Solid** (precise, low-entropy reasoning).
+        - Otherwise → **Fluid** (balanced default).
+        - Callers may override by passing ``task_complexity >= 1.0`` to
+          request the **Singularity** phase for extreme focus tasks.
+
+        Args:
+            stability: Current rolling stability score from the Mirror Layer
+                (range ``[0, 1]``).
+            task_complexity: Optional scalar hint from the caller.  When
+                ``>= 1.0`` and stability is high, returns ``"singularity"``.
+
+        Returns:
+            Phase name string.
+        """
+        if task_complexity is not None and task_complexity >= 1.0 and stability > 0.7:
+            return "singularity"
+        if stability < 0.4:
+            return "gas"
+        if stability > 0.9:
+            return "solid"
+        return "fluid"
+
+    def apply_phase(self, phase: str) -> None:
+        """
+        Apply ``phase`` to both the orchestrator and the underlying LGT model.
+
+        Updates every attention head's G value and the model's positional
+        embedding curvature to match the phase configuration.
+
+        Args:
+            phase: Target cognitive phase name.
+        """
+        cfg = self._PHASE_MAP.get(phase, self._PHASE_MAP["fluid"])
+        self.orchestrator.morph(phase)
+
+        # Propagate physics constants into the underlying LGT model blocks
+        for block in getattr(self.model, "blocks", []):
+            attn = getattr(block, "attn", None)
+            if attn is not None:
+                for head in getattr(attn, "heads", []):
+                    if hasattr(head, "G") and isinstance(head.G, nn.Parameter):
+                        with torch.no_grad():
+                            head.G.fill_(cfg["G"])
+                pos_emb = getattr(self.model, "pos_embedding", None)
+                if pos_emb is not None and hasattr(pos_emb, "curvature"):
+                    with torch.no_grad():
+                        curvature_param = pos_emb.curvature
+                        if isinstance(curvature_param, nn.Parameter):
+                            curvature_param.fill_(cfg["curvature"])
+
+    # ------------------------------------------------------------------
+    # Morphic processing
+    # ------------------------------------------------------------------
+
+    def process_morphic(
+        self,
+        x: torch.Tensor,
+        task_complexity: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run a full morphic inference pass with automatic phase shifting.
+
+        Workflow:
+
+        1. Read current stability from the Mirror Layer.
+        2. Determine the desired phase via :meth:`determine_phase`.
+        3. If phase changed: call :meth:`apply_phase` and log the transition.
+        4. Run the standard LGT inference pass via :meth:`process`.
+
+        Args:
+            x: Input token-index tensor ``[batch, seq_len]``.
+            task_complexity: Optional complexity hint forwarded to
+                :meth:`determine_phase`.
+
+        Returns:
+            The dict returned by :meth:`process`, augmented with a
+            ``"phase"`` key containing the active phase name.
+        """
+        stability = self.mirror_layer.stability_score()
+        new_phase = self.determine_phase(stability, task_complexity)
+
+        if new_phase != self.current_phase:
+            old_phase = self.current_phase
+            self.apply_phase(new_phase)
+            self.current_phase = new_phase
+            self.ledger.log("phase_shift", {
+                "from": old_phase,
+                "to": new_phase,
+                "stability": stability,
+                "task_complexity": task_complexity,
+            })
+
+        result = self.process(x)
+        result["phase"] = self.current_phase
+        return result
