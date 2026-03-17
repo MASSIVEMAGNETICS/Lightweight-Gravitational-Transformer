@@ -19,115 +19,124 @@ __version__ = "0.1.0"
 __author__ = "MASSIVEMAGNETICS"
 __license__ = "MIT"
 
-# Core attention
-from gravitational_attention import (
-    GravitationalAttentionHead,
-    MultiHeadGravitationalAttention,
-)
+# All LGT modules require torch.  Guard the imports so that lightweight
+# sub-packages (e.g. boxol_flower) remain importable in torch-free envs.
+try:
+    # Core attention
+    from gravitational_attention import (
+        GravitationalAttentionHead,
+        MultiHeadGravitationalAttention,
+    )
 
-# Position encodings
-from fractal_position_embedding import FractalPositionEmbedding
-from lightweight_gravitational_transformer import (
-    CurvedPositionEmbedding,
-    LightweightGravitationalBlock,
-    LightweightGravitationalTransformer,
-)
-
-# VictorOS integration
-from victorcos_module import (
-    Ledger,
-    LedgerEntry,
-    MirrorLayer,
-    VictorOSBaseModule,
-    VictorOSModuleMetadata,
-    LGTVictorOSModule,
-    MorphicVictorAgent,
-    victoros_module,
-)
-
-# Morphic Cognitive Engine
-from octonion_pos_embedding import (
-    OctonionEmbedding,
-    octonion_distance,
-    GravitationalOctonionPosition,
-)
-from polymorphic_attention_orchestrator import (
-    PHASE_CONFIG,
-    PolymorphicAttentionOrchestrator,
-)
-from training_containment import (
-    MorphicContainmentConfig,
-    MorphicContainmentProtocol,
-)
-
-# Training
-from training import (
-    ContainmentConfig,
-    ContainmentProtocol,
-    MetaCurvatureScheduler,
-    TrainingConfig,
-    TrainingLoop,
-)
-
-# Tri-model
-from tri_model import (
-    CrossGravitationalFusion,
-    TriModelTransformer,
-)
-
-# Edge export
-from export_edge_model import (
-    PRESETS,
-    build_model,
-    export_edge_model,
-    export_torchscript,
-    quantize_dynamic,
-    save_checkpoint,
-)
-
-__all__ = [
-    # Version
-    "__version__",
-    # Attention
-    "GravitationalAttentionHead",
-    "MultiHeadGravitationalAttention",
     # Position encodings
-    "FractalPositionEmbedding",
-    "CurvedPositionEmbedding",
-    # Transformer blocks
-    "LightweightGravitationalBlock",
-    "LightweightGravitationalTransformer",
-    # VictorOS
-    "Ledger",
-    "LedgerEntry",
-    "MirrorLayer",
-    "VictorOSBaseModule",
-    "VictorOSModuleMetadata",
-    "LGTVictorOSModule",
-    "MorphicVictorAgent",
-    "victoros_module",
+    from fractal_position_embedding import FractalPositionEmbedding
+    from lightweight_gravitational_transformer import (
+        CurvedPositionEmbedding,
+        LightweightGravitationalBlock,
+        LightweightGravitationalTransformer,
+    )
+
+    # VictorOS integration
+    from victorcos_module import (
+        Ledger,
+        LedgerEntry,
+        MirrorLayer,
+        VictorOSBaseModule,
+        VictorOSModuleMetadata,
+        LGTVictorOSModule,
+        MorphicVictorAgent,
+        victoros_module,
+    )
+
     # Morphic Cognitive Engine
-    "OctonionEmbedding",
-    "octonion_distance",
-    "GravitationalOctonionPosition",
-    "PHASE_CONFIG",
-    "PolymorphicAttentionOrchestrator",
-    "MorphicContainmentConfig",
-    "MorphicContainmentProtocol",
+    from octonion_pos_embedding import (
+        OctonionEmbedding,
+        octonion_distance,
+        GravitationalOctonionPosition,
+    )
+    from polymorphic_attention_orchestrator import (
+        PHASE_CONFIG,
+        PolymorphicAttentionOrchestrator,
+    )
+    from training_containment import (
+        MorphicContainmentConfig,
+        MorphicContainmentProtocol,
+    )
+
     # Training
-    "ContainmentConfig",
-    "ContainmentProtocol",
-    "MetaCurvatureScheduler",
-    "TrainingConfig",
-    "TrainingLoop",
+    from training import (
+        ContainmentConfig,
+        ContainmentProtocol,
+        MetaCurvatureScheduler,
+        TrainingConfig,
+        TrainingLoop,
+    )
+
     # Tri-model
-    "CrossGravitationalFusion",
-    "TriModelTransformer",
-    # Export
-    "PRESETS",
-    "build_model",
-    "export_edge_model",
-    "export_torchscript",
-    "quantize_dynamic",
-    "save_checkpoint",
-]
+    from tri_model import (
+        CrossGravitationalFusion,
+        TriModelTransformer,
+    )
+
+    # Edge export
+    from export_edge_model import (
+        PRESETS,
+        build_model,
+        export_edge_model,
+        export_torchscript,
+        quantize_dynamic,
+        save_checkpoint,
+    )
+
+    __all__ = [
+        # Version
+        "__version__",
+        # Attention
+        "GravitationalAttentionHead",
+        "MultiHeadGravitationalAttention",
+        # Position encodings
+        "FractalPositionEmbedding",
+        "CurvedPositionEmbedding",
+        # Transformer blocks
+        "LightweightGravitationalBlock",
+        "LightweightGravitationalTransformer",
+        # VictorOS
+        "Ledger",
+        "LedgerEntry",
+        "MirrorLayer",
+        "VictorOSBaseModule",
+        "VictorOSModuleMetadata",
+        "LGTVictorOSModule",
+        "MorphicVictorAgent",
+        "victoros_module",
+        # Morphic Cognitive Engine
+        "OctonionEmbedding",
+        "octonion_distance",
+        "GravitationalOctonionPosition",
+        "PHASE_CONFIG",
+        "PolymorphicAttentionOrchestrator",
+        "MorphicContainmentConfig",
+        "MorphicContainmentProtocol",
+        # Training
+        "ContainmentConfig",
+        "ContainmentProtocol",
+        "MetaCurvatureScheduler",
+        "TrainingConfig",
+        "TrainingLoop",
+        # Tri-model
+        "CrossGravitationalFusion",
+        "TriModelTransformer",
+        # Export
+        "PRESETS",
+        "build_model",
+        "export_edge_model",
+        "export_torchscript",
+        "quantize_dynamic",
+        "save_checkpoint",
+    ]
+
+except ImportError:
+    # torch (or a dependent module) is not installed.
+    # Individual LGT modules are still importable directly.
+    __all__ = ["__version__"]
+

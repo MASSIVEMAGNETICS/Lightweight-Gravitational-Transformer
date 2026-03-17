@@ -1,0 +1,6 @@
+# Runtime dependencies for the boxol_flower package.
+# torch and matplotlib are optional — the core BoxolFlower class only
+# requires numpy.  Install extras for GUI or torch support:
+#   pip install matplotlib            # for GuiController
+#   pip install torch                 # for torch-aware extensions
+numpy>=1.24.0
