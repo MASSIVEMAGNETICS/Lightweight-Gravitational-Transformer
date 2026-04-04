@@ -64,9 +64,11 @@ gui = [
 lgt-export = "export_edge_model:main"
 boxol-flower = "boxol_flower.cli:main"
 
+[tool.setuptools.package-dir]
+"" = "src"
+
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["*"]
+where = ["src"]
 exclude = ["tests*", "benchmarks*", "examples*", "docs*", "scripts*"]
 
 [tool.pytest.ini_options]

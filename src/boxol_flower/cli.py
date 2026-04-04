@@ -166,7 +166,9 @@ def _run_gui(args: argparse.Namespace) -> None:  # pragma: no cover
     try:
         gui = GuiController(flower)
         gui.run()
-    except RuntimeError as exc:
+    except Exception as exc:
+        # Catches RuntimeError (GUI libs missing), TclError (no display),
+        # and any other GUI initialisation failure.
         _log.warning(
             "GUI unavailable (%s). Falling back to headless mode.", exc
         )

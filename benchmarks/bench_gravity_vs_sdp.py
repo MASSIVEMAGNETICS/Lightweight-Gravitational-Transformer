@@ -327,13 +327,15 @@ def estimate_flops_gravity(
       Mass projection  : 2 * B * S * (D/H) * num_heads  = 2 * B * S * D
       Pairwise forces  : B * S^2 * H  (mass products + division per pair+head)
       Attention output : 2 * B * S^2 * D  (same as standard weighted sum)
-      No QKV or out-proj (replaced by mass_proj + force formula)
+      Out projection   : 2 * B * S * D^2
+      No QKV projections (replaced by mass_proj + force formula)
     FFN: same as SDP (unchanged).
     """
     attn = num_layers * (
         2 * batch * seq * dim                   # mass projection (one linear per head)
         + 4 * batch * seq * seq * num_heads     # pairwise force: mi*mj/dist² per pair per head
         + 2 * batch * seq * seq * dim           # weighted sum
+        + 2 * batch * seq * dim * dim           # out proj
     )
     ffn = num_layers * 8 * batch * seq * dim * dim
     embed = 2 * batch * seq * dim
@@ -592,13 +594,13 @@ def _run_jax_bench(
     def fwd(p, x):  # type: ignore[return]
         return model.apply({"params": p}, x)
 
-    # Warm-up
-    _ = fwd(params, dummy)
+    # Warm-up: ensure compilation + first execution complete
+    fwd(params, dummy).block_until_ready()
 
     times: List[float] = []
     for _ in range(runs):
         t0 = time.perf_counter()
-        _ = fwd(params, dummy)
+        fwd(params, dummy).block_until_ready()
         times.append((time.perf_counter() - t0) * 1000)
 
     times.sort()
@@ -688,14 +690,22 @@ def run_benchmark(
     _print_loss_table(gravity_losses, sdp_losses, interval=interval)
 
     # ------------------------------------------------------------------
-    # Latency / throughput
+    # Latency / throughput — always measured on CPU (edge-device proxy)
     # ------------------------------------------------------------------
     print("\n─── Phase 2: Latency & Throughput (CPU) ───")
-    example = torch.randint(0, vocab, (batch, seq_len))
+    cpu_device = torch.device("cpu")
+    example = torch.randint(0, vocab, (batch, seq_len), device=cpu_device)
     warmup = max(2, runs // 10)
 
-    gravity_lat = _measure_latency(gravity_model, example, warmup, runs, device)
-    sdp_lat = _measure_latency(sdp_model, example, warmup, runs, device)
+    # Move models to CPU explicitly; restore to training device afterwards.
+    gravity_model.to(cpu_device)
+    sdp_model.to(cpu_device)
+
+    gravity_lat = _measure_latency(gravity_model, example, warmup, runs, cpu_device)
+    sdp_lat = _measure_latency(sdp_model, example, warmup, runs, cpu_device)
+
+    gravity_model.to(device)
+    sdp_model.to(device)
 
     latency_rows: List[Dict[str, Any]] = [
         {"label": "Gravity LGT", "params": n_gravity, "latency": gravity_lat},

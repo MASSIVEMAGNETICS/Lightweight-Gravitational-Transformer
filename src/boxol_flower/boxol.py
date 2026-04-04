@@ -554,18 +554,25 @@ class GuiController:
                 "or no display detected.  Use headless mode instead."
             )
         self._flower = flower
-        self._root = _tkinter.Tk()
-        self._root.title(self._TITLE)
-        self._root.geometry(self._WINDOW_SIZE)
+        try:
+            self._root = _tkinter.Tk()
+            self._root.title(self._TITLE)
+            self._root.geometry(self._WINDOW_SIZE)
 
-        self._fig = _Figure(figsize=(14, 9))
-        self._ax = self._fig.add_subplot(111, projection="3d")
-        self._canvas = _FigureCanvasTkAgg(self._fig, master=self._root)
-        self._canvas.get_tk_widget().pack(fill=_tkinter.BOTH, expand=True)
+            self._fig = _Figure(figsize=(14, 9))
+            self._ax = self._fig.add_subplot(111, projection="3d")
+            self._canvas = _FigureCanvasTkAgg(self._fig, master=self._root)
+            self._canvas.get_tk_widget().pack(fill=_tkinter.BOTH, expand=True)
 
-        self._build_controls()
-        self.update()
-        _log.info("GuiController created")
+            self._build_controls()
+            self.update()
+            _log.info("GuiController created")
+        except _tkinter.TclError as exc:
+            _log.debug("Tkinter failed to initialise GUI", exc_info=exc)
+            raise RuntimeError(
+                "GUI unavailable: tkinter initialisation failed or no "
+                "display detected.  Use headless mode instead."
+            ) from exc
 
     def _build_controls(self) -> None:  # pragma: no cover
         """Construct the input frame, buttons, and status labels."""

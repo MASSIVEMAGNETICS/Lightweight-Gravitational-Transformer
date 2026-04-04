@@ -72,11 +72,10 @@ jobs:
 
       - name: Run boxol_flower tests
         run: |
-          pytest tests/test_import.py \
+          PYTHONPATH=src pytest tests/test_import.py \
             -v --tb=short \
             --cov=src/boxol_flower \
-            --cov-report=term-missing \
-            --pythonpath=src
+            --cov-report=term-missing
 
   headless-cli:
     name: Headless CLI smoke test
